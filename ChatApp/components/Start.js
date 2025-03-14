@@ -11,9 +11,11 @@ import {
 } from "react-native";
 
 const Start = ({ navigation }) => {
+  // State to store the user's name
   const [name, setName] = useState("");
   const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
 
+  // Available color options for background
   const colors = {
     black: "#090C08",
     purple: "#474056",
@@ -34,6 +36,10 @@ const Start = ({ navigation }) => {
             value={name}
             onChangeText={setName}
             placeholder="Your Name"
+            accessible={true}
+            accessibilityLabel="Name input field"
+            accessibilityHint="Enter your name for the chat"
+            accessibilityRole="text"
           />
 
           <View style={styles.colorSelector}>
@@ -50,6 +56,10 @@ const Start = ({ navigation }) => {
                     backgroundColor === color && styles.selectedColor,
                   ]}
                   onPress={() => setBackgroundColor(color)}
+                  accessible={true}
+                  accessibilityLabel={`${key} color`}
+                  accessibilityHint={`Select ${key} as chat background color`}
+                  accessibilityRole="button"
                 />
               ))}
             </View>
@@ -63,11 +73,20 @@ const Start = ({ navigation }) => {
                 backgroundColor: backgroundColor,
               });
             }}
+            accessible={true}
+            accessibilityLabel="Start chatting"
+            accessibilityHint="Tap to go to the chat screen"
+            accessibilityRole="button"
           >
             <Text style={styles.buttonText}>Start Chatting</Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Adjust keyboard behavior for iOS */}
+      {Platform.OS === "ios" ? (
+        <KeyboardAvoidingView behavior="padding" />
+      ) : null}
     </ImageBackground>
   );
 };

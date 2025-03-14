@@ -1,6 +1,13 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { LogBox } from "react-native";
+
+// Ігнорувати конкретні попередження
+LogBox.ignoreLogs([
+  "Warning: Avatar: Support for defaultProps will be removed from function components",
+  'Warning: A props object containing a "key" prop is being spread into JSX',
+]);
 
 // import the screens we want to navigate
 import Start from "./components/Start";
