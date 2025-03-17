@@ -9,11 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { getAuth, signInAnonymously } from "firebase/auth";
 
 const Start = ({ navigation }) => {
   // State to store the user's name
   const [name, setName] = useState("");
-  const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
+  const [backgroundColor, setBackgroundColor] = useState("#090C08");
 
   // Available color options for background
   const colors = {
@@ -21,6 +22,28 @@ const Start = ({ navigation }) => {
     purple: "#474056",
     grey: "#8A95A5",
     green: "#B9C6AE",
+  };
+
+  // Function for anonymous authentication and navigation to chat
+  const signInUser = async () => {
+    const auth = getAuth();
+    try {
+      const result = await signInAnonymously(auth);
+      // After successful authentication, navigate to the chat screen
+      navigation.navigate("Chat", {
+        name: name || "User",
+        backgroundColor: backgroundColor,
+        userId: result.user.uid, // Pass user's uid
+      });
+    } catch (error) {
+      console.log("Error signing in anonymously:", error);
+      alert("Failed to sign in. Please try again.");
+    }
+  };
+
+  // Function to select background color
+  const selectBackgroundColor = (color) => {
+    setBackgroundColor(color);
   };
 
   return (
@@ -47,32 +70,40 @@ const Start = ({ navigation }) => {
               Choose Background Color:
             </Text>
             <View style={styles.colorOptions}>
-              {Object.entries(colors).map(([key, color]) => (
-                <TouchableOpacity
-                  key={key}
-                  style={[
-                    styles.colorOption,
-                    { backgroundColor: color },
-                    backgroundColor === color && styles.selectedColor,
-                  ]}
-                  onPress={() => setBackgroundColor(color)}
-                  accessible={true}
-                  accessibilityLabel={`${key} color`}
-                  accessibilityHint={`Select ${key} as chat background color`}
-                  accessibilityRole="button"
-                />
-              ))}
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: "#090C08" }]}
+                onPress={() => selectBackgroundColor("#090C08")}
+                accessible={true}
+                accessibilityLabel="Black background color option"
+                accessibilityHint="Select black as your chat background color"
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: "#474056" }]}
+                onPress={() => selectBackgroundColor("#474056")}
+                accessible={true}
+                accessibilityLabel="Dark purple background color option"
+                accessibilityHint="Select dark purple as your chat background color"
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: "#8A95A5" }]}
+                onPress={() => selectBackgroundColor("#8A95A5")}
+                accessible={true}
+                accessibilityLabel="Grey background color option"
+                accessibilityHint="Select grey as your chat background color"
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: "#B9C6AE" }]}
+                onPress={() => selectBackgroundColor("#B9C6AE")}
+                accessible={true}
+                accessibilityLabel="Green background color option"
+                accessibilityHint="Select green as your chat background color"
+              />
             </View>
           </View>
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => {
-              navigation.navigate("Chat", {
-                name: name || "Anonymous User",
-                backgroundColor: backgroundColor,
-              });
-            }}
+            onPress={signInUser}
             accessible={true}
             accessibilityLabel="Start chatting"
             accessibilityHint="Tap to go to the chat screen"
