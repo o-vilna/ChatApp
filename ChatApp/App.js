@@ -3,6 +3,14 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { LogBox, Alert, View, Text } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID,
+} from "@env";
 
 // Import Firebase
 import { initializeApp } from "firebase/app";
@@ -27,12 +35,12 @@ LogBox.ignoreLogs([
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBbZGlKIi3o8tNYUiHAcSdshqp-lw3ILBI",
-  authDomain: "chatapp-ca486.firebaseapp.com",
-  projectId: "chatapp-ca486",
-  storageBucket: "chatapp-ca486.firebasestorage.app",
-  messagingSenderId: "271174903513",
-  appId: "1:271174903513:web:81ab085d2ee6eae72080c8",
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID,
 };
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
