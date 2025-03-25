@@ -99,15 +99,14 @@ To deploy the app, follow Expo’s documentation on building standalone apps for
    - Go to Storage > Get Started
    - Add these rules to Storage:
    ```javascript
-   rules_version = '2';
-   service firebase.storage {
-     match /b/{bucket}/o {
-       match /{userId}/{imageId} {
-         allow read: if true;
-         allow write: if true;
-       }
-     }
-   }
+  rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
    ```
 5. Get Firebase Configuration:
    - Go to Project Settings
