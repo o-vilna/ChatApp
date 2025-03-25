@@ -12,6 +12,7 @@ import {
   enableNetwork,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 import Start from "./components/Start";
 import Chat from "./components/Chat";
@@ -33,11 +34,14 @@ const firebaseConfig = {
   messagingSenderId: "271174903513",
   appId: "1:271174903513:web:81ab085d2ee6eae72080c8",
 };
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app); // Get Firestore database instance
-const auth = getAuth(app); // Initialize Firebase Authentication
+const db = getFirestore(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
+
+// Додайте перевірку ініціалізації storage
+console.log("Storage bucket:", storage.app.options.storageBucket);
 
 const Stack = createNativeStackNavigator();
 
@@ -115,7 +119,9 @@ const App = () => {
 
   // Create Chat component with explicit network state
   const ChatWrapper = useCallback(
-    (props) => <Chat isConnected={isConnected} db={db} {...props} />,
+    (props) => (
+      <Chat isConnected={isConnected} db={db} storage={storage} {...props} />
+    ),
     [isConnected]
   );
 

@@ -18,6 +18,10 @@ import {
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
+import CustomActions from "./CustomActions";
+import MapView from "react-native-maps";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import * as ImagePicker from "expo-image-picker";
 
 // Welcome message shown when no messages are loaded
 const WELCOME_MESSAGE = {
@@ -27,7 +31,16 @@ const WELCOME_MESSAGE = {
   system: true,
 };
 
-const Chat = ({ route, navigation, db, isConnected }) => {
+/**
+ * Chat screen component handling messages, media sharing, and offline functionality
+ * @param {Object} props Component props
+ * @param {Object} props.route Navigation route object
+ * @param {Object} props.navigation Navigation object
+ * @param {Object} props.db Firestore database instance
+ * @param {boolean} props.isConnected Network connection status
+ * @param {Object} props.storage Firebase storage instance
+ */
+const Chat = ({ route, navigation, db, isConnected, storage }) => {
   const { userId, name, backgroundColor } = route.params;
   const [messages, setMessages] = useState([WELCOME_MESSAGE]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,6 +87,10 @@ const Chat = ({ route, navigation, db, isConnected }) => {
     }
   }, [isConnected, forceOffline]);
 
+  /**
+   * Loads cached messages from AsyncStorage
+   * @returns {Promise<void>}
+   */
   const loadCachedMessages = async () => {
     try {
       setIsLoading(true);
@@ -81,13 +98,11 @@ const Chat = ({ route, navigation, db, isConnected }) => {
 
       if (cachedMessages) {
         const parsedMessages = JSON.parse(cachedMessages);
-        if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
-          setMessages(parsedMessages);
-        } else {
-          setMessages([WELCOME_MESSAGE]);
-        }
-      } else {
-        setMessages([WELCOME_MESSAGE]);
+        setMessages(
+          Array.isArray(parsedMessages) && parsedMessages.length > 0
+            ? parsedMessages
+            : [WELCOME_MESSAGE]
+        );
       }
     } catch (error) {
       console.error("Cache loading error:", error);
@@ -115,7 +130,7 @@ const Chat = ({ route, navigation, db, isConnected }) => {
             (querySnapshot) => {
               const newMessages = querySnapshot.docs.map((doc) => {
                 const data = doc.data();
-                return {
+                const message = {
                   _id: doc.id,
                   text: data.text,
                   createdAt: data.createdAt
@@ -126,20 +141,24 @@ const Chat = ({ route, navigation, db, isConnected }) => {
                     name: data.user.name,
                   },
                 };
+
+                // add image
+                if (data.image) {
+                  message.image = data.image;
+                }
+
+                // add location
+                if (data.location) {
+                  message.location = data.location;
+                }
+
+                return message;
               });
 
-              if (newMessages.length === 0) {
-                setMessages([WELCOME_MESSAGE]);
-              } else {
-                setMessages(newMessages);
-              }
-
-              // Cache messages for offline use
-              AsyncStorage.setItem(
-                "messages",
-                JSON.stringify(newMessages)
-              ).catch((error) => console.error("Caching error:", error));
-
+              setMessages(
+                newMessages.length === 0 ? [WELCOME_MESSAGE] : newMessages
+              );
+              AsyncStorage.setItem("messages", JSON.stringify(newMessages));
               setIsLoading(false);
             },
             (error) => {
@@ -152,42 +171,42 @@ const Chat = ({ route, navigation, db, isConnected }) => {
           loadCachedMessages();
         }
       } else {
-        // We're offline, load cached messages
         await loadCachedMessages();
       }
     };
 
     setupFirestore();
 
-    // Cleanup listener on unmount
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      if (unsubscribe) unsubscribe();
     };
   }, [isConnected, forceOffline]);
 
-  // Send message handler
+  /**
+   * Handles sending messages
+   * @param {Array|Object} newMessages - New message(s) to send
+   */
   const onSend = useCallback(
     async (newMessages = []) => {
-      // Explicitly check for offline mode
       if (isReallyOffline) {
         Alert.alert("Offline Mode", "Cannot send messages while offline");
         return;
       }
 
       try {
-        const message = newMessages[0];
-
-        await addDoc(collection(db, "messages"), {
-          _id: message._id,
-          text: message.text,
+        const message = Array.isArray(newMessages)
+          ? newMessages[0]
+          : newMessages;
+        const messageToSend = {
+          _id: message._id || Math.round(Math.random() * 1000000),
+          text: message.text || "",
           createdAt: serverTimestamp(),
-          user: {
-            _id: userId,
-            name: name,
-          },
-        });
+          user: { _id: userId, name: name },
+          ...(message.image && { image: message.image }),
+          ...(message.location && { location: message.location }),
+        };
+
+        await addDoc(collection(db, "messages"), messageToSend);
       } catch (error) {
         console.error("Message send error:", error);
         Alert.alert("Error", "Failed to send message");
@@ -231,7 +250,108 @@ const Chat = ({ route, navigation, db, isConnected }) => {
     [isConnected, forceOffline, isReallyOffline]
   );
 
-  // EXTREME FAILSAFE - complete override of GiftedChat for offline mode
+  const renderCustomActions = (props) => {
+    return (
+      <CustomActions
+        {...props}
+        storage={storage}
+        userId={userId}
+        name={name}
+        onSend={onSend}
+      />
+    );
+  };
+
+  const renderCustomView = (props) => {
+    const { currentMessage } = props;
+    if (currentMessage.location) {
+      return (
+        <MapView
+          style={{
+            width: 150,
+            height: 100,
+            borderRadius: 13,
+            margin: 3,
+          }}
+          region={{
+            latitude: currentMessage.location.latitude,
+            longitude: currentMessage.location.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          }}
+        />
+      );
+    }
+    return null;
+  };
+
+  const uploadAndSendImage = async (imageURI) => {
+    try {
+      const uniqueRefString = generateReference(imageURI);
+      const newUploadRef = ref(storage, uniqueRefString);
+      const fetchResponse = await fetch(imageURI);
+      const blob = await fetchResponse.blob();
+
+      // add metadata
+      const metadata = {
+        contentType: "image/jpeg",
+        customMetadata: {
+          userId: userId,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      await uploadBytes(newUploadRef, blob, metadata);
+      const imageURL = await getDownloadURL(newUploadRef);
+
+      onSend({
+        image: imageURL,
+        text: "",
+        user: {
+          _id: userId,
+          name: name,
+        },
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      Alert.alert("Upload Error", "Failed to upload image. Please try again.");
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      let permissions = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permissions?.granted) {
+        let result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.5,
+          allowsEditing: true,
+          aspect: [4, 3],
+        });
+
+        if (!result.canceled) {
+          await uploadAndSendImage(result.assets[0].uri);
+        }
+      } else {
+        Alert.alert("Permissions haven't been granted.");
+      }
+    } catch (error) {
+      console.error("Error in pickImage:", error);
+      Alert.alert("Error", "Failed to pick image");
+    }
+  };
+
+  const takePhoto = async () => {
+    let permissions = await ImagePicker.requestCameraPermissionsAsync();
+    if (permissions?.granted) {
+      let result = await ImagePicker.launchCameraAsync();
+      if (!result.canceled) await uploadAndSendImage(result.assets[0].uri);
+      else Alert.alert("Permissions haven't been granted.");
+    }
+  };
+
+  // complete override of GiftedChat for offline mode
   if (isReallyOffline || isConnected === false || forceOffline) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor }}>
@@ -250,7 +370,7 @@ const Chat = ({ route, navigation, db, isConnected }) => {
               }}
             />
           )}
-          renderInputToolbar={() => null} // FORCE NULL IN OFFLINE MODE
+          renderInputToolbar={() => null}
           onSend={() => {
             Alert.alert("Offline Mode", "Cannot send messages while offline");
           }}
@@ -280,6 +400,8 @@ const Chat = ({ route, navigation, db, isConnected }) => {
           />
         )}
         renderInputToolbar={renderInputToolbar}
+        renderActions={renderCustomActions}
+        renderCustomView={renderCustomView}
         placeholder="Type a message..."
         textInputProps={{
           accessible: true,
