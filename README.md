@@ -1,8 +1,8 @@
 # ChatApp
-The app provide users with a chat interface and options to share images and their location.
+A mobile chat application built with React Native that enables users to exchange messages, share images, and locations in real-time with offline support.
 
-## Objective
-The goal of this project is to develop a mobile chat application using React Native.
+## Description
+ChatApp is a cross-platform mobile application developed for both iOS and Android using React Native and Expo. It allows users to join a chat room, send text messages, share images from their gallery or camera, and share their current location. The app features offline capabilities, allowing users to access their chat history even without an internet connection.
 
 ## Technologies Used
 - **React Native**: For building the mobile application.
